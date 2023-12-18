@@ -19,6 +19,10 @@ class SeriesW(pd.Series):
     
     """   
     def __init__(self, data=None, index=None,weights = None, **kwargs):
+        if weights is None:
+            weights = np.ones(self.data.shape[0])
+        else:
+            weights = np.asarray(weights).astype(float)
         object.__setattr__(self,"weights", weights)
         name = kwargs.pop("name", None)
         super().__init__(data, index=index, name=name, **kwargs)
@@ -49,8 +53,28 @@ class SeriesW(pd.Series):
     
     def sum(self):
         return np.sum(super().values*self.weights)
+    
+    def nobs(self):
+        """
+        A nobs method to implement sum of weighted on a DataFrameW
+        """
+        return self.weights.sum(0)
+    
+    def sumsquares(self):
+        """weighted sum of squares of demeaned data"""
+        return np.dot(((super().values-self.mean()) ** 2).T, self.weights)
 
+    def var(self):
+        """variance with default degrees of freedom correction
+        """
+        return self.sumsquares() / (self.nobs())
 
+    def std(self):
+        """standard deviation with default degrees of freedom correction
+        """
+        return np.sqrt(self.var())
+        
+    
 class DataFrameW(pd.DataFrame):
     """
     A DataFrameW object is a pandas.DataFrame that has an attribute composed 
@@ -65,9 +89,11 @@ class DataFrameW(pd.DataFrame):
         number of rows in the data.
     """        
     def __init__(self, data=None, *args, weights = None, **kwargs):
-        
-        if weights is not None:
-            object.__setattr__(self,"weights", weights)
+        if weights is None:
+            weights = np.ones(self.data.shape[0])
+        else:
+            weights = np.asarray(weights).astype(float)
+        object.__setattr__(self,"weights", weights)
         super().__init__(data, *args, **kwargs)
         
         
@@ -102,8 +128,27 @@ class DataFrameW(pd.DataFrame):
         """
         A sum method to implement a weighted sum on a DataFrameW
         """
-
         return pd.Series(np.dot(super().values.T,self.weights),index=self.columns)
     
+    def nobs(self):
+        """
+        A nobs method to implement sum of weighted on a DataFrameW
+        """
+        return self.weights.sum(0)
+
+    def sumsquares(self):
+        """weighted sum of squares of demeaned data"""
+        return pd.Series(np.dot(((super().values-self.mean()) ** 2).T, self.weights), 
+                         index=self.columns)
+
+    def var(self):
+        """variance with default degrees of freedom correction
+        """
+        return self.sumsquares() / (self.nobs())
+
+    def std(self):
+        """standard deviation with default degrees of freedom correction
+        """
+        return np.sqrt(self.var())    
 
     
